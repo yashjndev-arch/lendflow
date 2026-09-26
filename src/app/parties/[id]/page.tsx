@@ -19,10 +19,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { loanHasStarted, loadParty, valueLoan } from "@/lib/books";
+import { loanHasStarted, loadParty, valueLoan, type BookLoan } from "@/lib/books";
 import { rollupComputations } from "@/lib/finance/aggregate";
 import { compareISO, formatDisplayDate, resolveAsOf } from "@/lib/finance/dates";
-import { transactionLabel } from "@/lib/finance/interest";
+import {
+  formatHoldingDuration,
+  formatLoanTotalDuration,
+  LOAN_DURATION_HINT,
+  TRANSACTION_DURATION_HINT,
+} from "@/lib/finance/duration";
+import { principalZeroDate, transactionLabel, type LoanComputation } from "@/lib/finance/interest";
 import { formatINR, formatPercent } from "@/lib/finance/money";
 import { hrefWith, one } from "@/lib/search";
 import { getSettings } from "@/lib/settings";
@@ -68,10 +74,18 @@ export default async function PartyLedgerPage({
         ...row,
         loanId: loan.id,
         loanCode: loan.code,
+        loanStart: loan.startDate,
         rate: loan.monthlyInterestRate,
       })),
     )
     .sort((a, b) => compareISO(a.date, b.date) || a.loanCode.localeCompare(b.loanCode));
+  const loanDuration = (loan: BookLoan, computation: LoanComputation) =>
+    formatLoanTotalDuration({
+      startDate: loan.startDate,
+      asOfDate: asOf,
+      outstanding: new Decimal(computation.outstandingPrincipal).gt(0),
+      zeroDate: principalZeroDate(computation.rows),
+    });
   const future = party.loans.flatMap((loan) =>
     loan.transactions
       .filter((txn) => compareISO(txn.transactionDate, asOf) > 0)
@@ -144,11 +158,15 @@ export default async function PartyLedgerPage({
       </div>
 
       <section className="mt-8">
-        <h2 className="mb-3 font-serif text-2xl">Transaction history</h2>
+        <h2 className="font-serif text-2xl">Transaction history</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          {"Duration is how long that loan's money had been out before the row date."}
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              <TableHead title={TRANSACTION_DURATION_HINT}>Duration</TableHead>
               <TableHead>Loan</TableHead>
               <TableHead>Transaction</TableHead>
               <TableHead className="text-right">Amount</TableHead>
@@ -161,7 +179,7 @@ export default async function PartyLedgerPage({
           <TableBody>
             {history.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground">
+                <TableCell colSpan={9} className="text-muted-foreground">
                   No transactions on or before {formatDisplayDate(asOf)}.
                 </TableCell>
               </TableRow>
@@ -169,6 +187,9 @@ export default async function PartyLedgerPage({
               history.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="num">{formatDisplayDate(row.date)}</TableCell>
+                  <TableCell className="num" title={TRANSACTION_DURATION_HINT}>
+                    {formatHoldingDuration(row.loanStart, row.date)}
+                  </TableCell>
                   <TableCell className="num">{row.loanCode}</TableCell>
                   <TableCell>{row.label}</TableCell>
                   <TableCell className="text-right">
@@ -216,6 +237,10 @@ export default async function PartyLedgerPage({
               <p className="text-sm text-muted-foreground">
                 {formatINR(loan.originalPrincipal, symbol)} from {formatDisplayDate(loan.startDate)} at {formatPercent(loan.monthlyInterestRate)} monthly ({formatPercent(loan.annualInterestRate)} a year).
                 {" "}
+                <span title={LOAN_DURATION_HINT}>
+                  Total duration: {loanDuration(loan, computation)}.
+                </span>
+                {" "}
                 <Badge variant={loan.status === "CLOSED" ? "outline" : "secondary"}>
                   {loan.status === "CLOSED" ? "Closed" : "Active"}
                 </Badge>
@@ -242,6 +267,7 @@ export default async function PartyLedgerPage({
             accrued={computation.accruedInterest}
             outstanding={computation.outstandingPrincipal}
             totalDue={computation.totalDue}
+            totalDuration={loanDuration(loan, computation)}
           />
         </section>
       ))}

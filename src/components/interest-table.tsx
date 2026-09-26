@@ -9,6 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDisplayDate } from "@/lib/finance/dates";
+import {
+  formatHoldingDuration,
+  LOAN_DURATION_HINT,
+  PERIOD_DURATION_HINT,
+} from "@/lib/finance/duration";
 import type { InterestPeriod } from "@/lib/finance/interest";
 import { formatINR, formatPercent } from "@/lib/finance/money";
 
@@ -18,12 +23,14 @@ export function InterestTable({
   accrued,
   outstanding,
   totalDue,
+  totalDuration,
 }: {
   periods: InterestPeriod[];
   symbol: string;
   accrued: string;
   outstanding: string;
   totalDue: string;
+  totalDuration: string;
 }) {
   return (
     <div className="grid gap-3">
@@ -34,6 +41,7 @@ export function InterestTable({
             <TableHead>From</TableHead>
             <TableHead>To</TableHead>
             <TableHead className="text-right">Days</TableHead>
+            <TableHead title={PERIOD_DURATION_HINT}>Duration</TableHead>
             <TableHead className="text-right">Principal</TableHead>
             <TableHead>Monthly rate</TableHead>
             <TableHead>Annual rate</TableHead>
@@ -44,7 +52,7 @@ export function InterestTable({
         <TableBody>
           {periods.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-muted-foreground">
+              <TableCell colSpan={10} className="text-muted-foreground">
                 No interest period falls on or before this date.
               </TableCell>
             </TableRow>
@@ -60,6 +68,9 @@ export function InterestTable({
                   </span>
                 </TableCell>
                 <TableCell className="num text-right">{period.days}</TableCell>
+                <TableCell className="num">
+                  {formatHoldingDuration(period.from, period.endExclusive)}
+                </TableCell>
                 <TableCell className="text-right">
                   <Money value={period.principal} symbol={symbol} />
                 </TableCell>
@@ -77,13 +88,17 @@ export function InterestTable({
         </TableBody>
         <TableFooter>
           <TableRow>
-            <TableCell colSpan={7}>Total accrued interest</TableCell>
+            <TableCell colSpan={8}>Total accrued interest</TableCell>
             <TableCell className="text-right">{formatINR(accrued, symbol)}</TableCell>
             <TableCell className="hidden lg:table-cell" />
           </TableRow>
         </TableFooter>
       </Table>
       <div className="grid gap-1 text-sm sm:ml-auto sm:min-w-80">
+        <div className="flex justify-between gap-6">
+          <span title={LOAN_DURATION_HINT}>Total duration</span>
+          <span className="num text-right">{totalDuration}</span>
+        </div>
         <div className="flex justify-between gap-6">
           <span>Total accrued interest</span>
           <Money value={accrued} symbol={symbol} />
@@ -100,8 +115,9 @@ export function InterestTable({
       <p className="text-xs leading-5 text-muted-foreground">
         From is included. When the To date is a repayment, that day is excluded from the old
         principal and the reduced principal starts that day. The calculation date on the last
-        period is included. Period interest is rounded for display; the total is rounded only
-        after the exact period amounts are added, so the displayed rows can differ by a paisa.
+        period is included. Duration uses that same day count. Period interest is rounded for
+        display; the total is rounded only after the exact period amounts are added, so the
+        displayed rows can differ by a paisa.
       </p>
     </div>
   );

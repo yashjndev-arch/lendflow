@@ -90,6 +90,37 @@ export function addDays(iso: string, days: number): string {
   return dateToISO(date);
 }
 
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Add calendar months, clamping the day to the last day of the target month.
+ *
+ * 31 January plus one month is 28 February, or 29 February in a leap year.
+ * This does not use `Date#setMonth`, which would overflow 31 January into March.
+ */
+export function addCalendarMonths(iso: string, months: number): string {
+  if (!Number.isInteger(months)) {
+    throw new Error(`Months must be an integer: ${months}`);
+  }
+  const match = ISO_DATE.exec(iso);
+  if (!match) {
+    throw new Error(`Invalid date: ${iso}`);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const total = year * 12 + (month - 1) + months;
+  const nextYear = Math.floor(total / 12);
+  const nextMonthIndex = total - nextYear * 12;
+  const lastDay = daysInMonth(nextYear, nextMonthIndex + 1);
+  const nextDay = Math.min(day, lastDay);
+  const next = `${String(nextYear).padStart(4, "0")}-${String(nextMonthIndex + 1).padStart(2, "0")}-${String(nextDay).padStart(2, "0")}`;
+  parseISODate(next);
+  return next;
+}
+
 export function todayISO(
   timeZone = "Asia/Kolkata",
   now = new Date(),

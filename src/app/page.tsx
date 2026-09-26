@@ -17,6 +17,7 @@ import {
 import { loadParties } from "@/lib/books";
 import { buildDashboard } from "@/lib/dashboard";
 import { formatDisplayDate, resolveAsOf } from "@/lib/finance/dates";
+import { DASHBOARD_DURATION_HINT } from "@/lib/finance/duration";
 import { formatINR } from "@/lib/finance/money";
 import { hrefWith, one } from "@/lib/search";
 import { getSettings } from "@/lib/settings";
@@ -117,6 +118,15 @@ export default async function DashboardPage({
                       <dt className="text-muted-foreground">Total due</dt>
                       <dd><Money value={row.rollup.totalDue} symbol={symbol} /></dd>
                     </div>
+                    <div className="col-span-2">
+                      <dt className="text-muted-foreground" title={DASHBOARD_DURATION_HINT}>Duration</dt>
+                      <dd>
+                        <span className="num">{row.durationLabel ?? "—"}</span>
+                        {row.durationHint ? (
+                          <span className="block text-xs text-muted-foreground">{row.durationHint}</span>
+                        ) : null}
+                      </dd>
+                    </div>
                   </dl>
                 </article>
               ))}
@@ -133,6 +143,7 @@ export default async function DashboardPage({
                     <TableHead className="text-right">Accrued interest</TableHead>
                     <TableHead className="text-right">Total due</TableHead>
                     <TableHead>Last transaction</TableHead>
+                    <TableHead title={DASHBOARD_DURATION_HINT}>Duration</TableHead>
                     <TableHead className="no-print" />
                   </TableRow>
                 </TableHeader>
@@ -153,6 +164,12 @@ export default async function DashboardPage({
                       <TableCell className="text-right"><Money value={row.rollup.totalDue} symbol={symbol} /></TableCell>
                       <TableCell className="num">
                         {row.rollup.lastTransactionDate ? formatDisplayDate(row.rollup.lastTransactionDate) : "—"}
+                      </TableCell>
+                      <TableCell className="max-w-44 whitespace-normal" title={row.durationHint ?? DASHBOARD_DURATION_HINT}>
+                        <div className="num">{row.durationLabel ?? "—"}</div>
+                        {row.durationHint ? (
+                          <div className="text-xs text-muted-foreground">{row.durationHint}</div>
+                        ) : null}
                       </TableCell>
                       <TableCell className="no-print text-right">
                         <Link href={hrefWith(`/parties/${row.partyId}`, { asOf })} className={buttonVariants({ variant: "outline", size: "sm" })}>

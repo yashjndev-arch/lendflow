@@ -346,6 +346,26 @@ export function calculateLoan(input: CalculateLoanInput): LoanComputation {
   };
 }
 
+/**
+ * Date of the last reduction that brought principal to zero.
+ * A later interest-only receipt does not move this date. Returns null while
+ * principal is still outstanding.
+ */
+export function principalZeroDate(rows: LedgerRow[]): string | null {
+  let zeroDate: string | null = null;
+  let previous = new Decimal(0);
+  for (const row of rows) {
+    const balance = new Decimal(row.principalBalance);
+    if (previous.gt(0) && balance.isZero()) {
+      zeroDate = row.date;
+    } else if (balance.gt(0)) {
+      zeroDate = null;
+    }
+    previous = balance;
+  }
+  return zeroDate;
+}
+
 export interface RepaymentPreview {
   ok: boolean;
   message: string | null;

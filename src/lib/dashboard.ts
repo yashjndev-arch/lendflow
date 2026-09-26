@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { rollupComputations, uniqueMonthlyRates } from "./finance/aggregate";
+import { oldestOpenLoanDuration } from "./finance/duration";
 import { formatPercent } from "./finance/money";
 import { loanHasStarted, valueLoan, type PartyBook } from "./books";
 import type { Rollup } from "./finance/aggregate";
@@ -12,6 +13,9 @@ export interface DashboardRow {
   rollup: Rollup;
   ratesLabel: string;
   loanCount: number;
+  /** Oldest open loan, through the selected date. Null when nothing is still out. */
+  durationLabel: string | null;
+  durationHint: string | null;
 }
 
 export interface DashboardModel {
@@ -29,18 +33,30 @@ export function buildDashboard(
     .filter((party) => party.isActive)
     .map((party) => {
       const loans = party.loans.filter((loan) => loanHasStarted(loan, asOf));
-      const computations = loans.map((loan) => valueLoan(loan, asOf, dayCountBasis));
+      const valued = loans.map((loan) => ({
+        loan,
+        computation: valueLoan(loan, asOf, dayCountBasis),
+      }));
+      const duration = oldestOpenLoanDuration(
+        valued.map((item) => ({
+          startDate: item.loan.startDate,
+          outstanding: new Decimal(item.computation.outstandingPrincipal).gt(0),
+        })),
+        asOf,
+      );
       return {
         partyId: party.id,
         code: party.code,
         name: party.name,
         phone: party.phone,
-        rollup: rollupComputations(computations),
+        rollup: rollupComputations(valued.map((item) => item.computation)),
         ratesLabel:
           uniqueMonthlyRates(loans.map((loan) => loan.monthlyInterestRate))
             .map((rate) => formatPercent(rate))
             .join(", ") || "—",
         loanCount: loans.length,
+        durationLabel: duration?.label ?? null,
+        durationHint: duration?.hint ?? null,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

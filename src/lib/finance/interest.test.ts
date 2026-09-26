@@ -6,6 +6,7 @@ import {
   calculateLoan,
   calculateSimpleInterest,
   previewRepayment,
+  principalZeroDate,
   type LedgerTransaction,
 } from "./interest";
 import { formatINR, formatPercent, roundMoney } from "./money";
@@ -409,6 +410,55 @@ describe("loan ledger", () => {
     expect(result.principalReceived).toBe("20");
     expect(result.interestPaid).toBe("5");
     expect(result.periods.map((period) => period.principal)).toEqual(["100", "80"]);
+  });
+});
+
+describe("principal zero date", () => {
+  it("uses the repayment that cleared principal, not a later interest receipt", () => {
+    const result = calculateLoan({
+      monthlyInterestRate: "1",
+      startDate: "2026-01-01",
+      asOfDate: "2026-02-15",
+      transactions: [
+        given({ id: "g", transactionDate: "2026-01-01", amount: "100" }),
+        repay({ id: "r", transactionDate: "2026-01-31", amount: "100" }),
+        {
+          id: "i",
+          transactionType: "INTEREST_PAYMENT",
+          paymentType: "INTEREST",
+          amount: "1",
+          principalAmount: "0",
+          interestAmount: "1",
+          transactionDate: "2026-02-10",
+        },
+      ],
+    });
+    expect(result.outstandingPrincipal).toBe("0");
+    expect(principalZeroDate(result.rows)).toBe("2026-01-31");
+  });
+
+  it("stays null while principal is outstanding and is the start date for a same-day clearance", () => {
+    const open = calculateLoan({
+      monthlyInterestRate: "1",
+      startDate: "2026-06-01",
+      asOfDate: "2026-08-03",
+      transactions: [
+        given({ id: "g", transactionDate: "2026-06-01", amount: "100" }),
+        repay({ id: "r", transactionDate: "2026-08-03", amount: "50" }),
+      ],
+    });
+    expect(principalZeroDate(open.rows)).toBeNull();
+
+    const sameDay = calculateLoan({
+      monthlyInterestRate: "1",
+      startDate: "2026-06-01",
+      asOfDate: "2026-06-10",
+      transactions: [
+        given({ id: "g", transactionDate: "2026-06-01", amount: "100" }),
+        repay({ id: "r", transactionDate: "2026-06-01", amount: "100" }),
+      ],
+    });
+    expect(principalZeroDate(sameDay.rows)).toBe("2026-06-01");
   });
 });
 
