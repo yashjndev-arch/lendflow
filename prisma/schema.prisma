@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LoanStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum TransactionType {
+  LOAN_GIVEN
+  REPAYMENT
+  INTEREST_PAYMENT
+  ADJUSTMENT
+}
+
+enum PaymentType {
+  PRINCIPAL
+  INTEREST
+  BOTH
+}
+
+model Party {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  phone     String?
+  address   String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loans        LoanAccount[]
+  transactions Transaction[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model LoanAccount {
+  id                  String     @id @default(cuid())
+  code                String     @unique
+  partyId             String
+  party               Party      @relation(fields: [partyId], references: [id])
+  originalPrincipal   Decimal    @db.Decimal(18, 2)
+  startDate           DateTime   @db.Date
+  monthlyInterestRate Decimal    @db.Decimal(10, 6)
+  annualInterestRate  Decimal    @db.Decimal(10, 6)
+  notes               String?
+  status              LoanStatus @default(ACTIVE)
+  deletedAt           DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  transactions Transaction[]
+
+  @@index([partyId])
+  @@index([status])
+  @@index([startDate])
+  @@index([deletedAt])
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  loanAccountId   String
+  loanAccount     LoanAccount     @relation(fields: [loanAccountId], references: [id])
+  partyId         String
+  party           Party           @relation(fields: [partyId], references: [id])
+  transactionType TransactionType
+  paymentType     PaymentType?
+  amount          Decimal         @db.Decimal(18, 2)
+  principalAmount Decimal         @db.Decimal(18, 2)
+  interestAmount  Decimal         @db.Decimal(18, 2)
+  transactionDate DateTime        @db.Date
+  notes           String?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([loanAccountId, transactionDate])
+  @@index([partyId, transactionDate])
+  @@index([transactionDate])
+  @@index([deletedAt])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        String
+  actor         String
+  summary       String
+  previousValue Json?
+  newValue      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AppSetting {
+  id             String   @id @default("default")
+  businessName   String   @default("Party Loan & Interest")
+  address        String   @default("")
+  phone          String   @default("")
+  dayCountBasis  Int      @default(365)
+  currency       String   @default("INR")
+  currencySymbol String   @default("₹")
+  dateFormat     String   @default("DD/MM/YYYY")
+  timezone       String   @default("Asia/Kolkata")
+  updatedAt      DateTime @updatedAt
+}
+
+model Counter {
+  id    String @id
+  value Int
+}
