@@ -55,11 +55,10 @@ Validation is Zod in `src/lib/validation.ts`. Server actions return `ActionState
 - Demo seed (development startup when there are no parties, and `npm run db:seed`): Party A ₹100 on 01/06/2026 at 1% with ₹50 repaid on 03/08/2026; Party B ₹200 on 07/06/2026 at 2%; Party C ₹500 on 03/08/2026 at 1.75%.
 - Calculation tests in `src/lib/finance/interest.test.ts`: no repayment, one and many partial repayments, full repayment, several loans and rates, leap day, zero interest, historical as-of date, same-day repayment, repayment above principal, interest-only and mixed receipts, display rounding.
 - `npm run lint` is clean on the committed tree. During implementation, `npm run typecheck`, `npm test`, and `npm run build` passed. The last code change after that full pass was the native rate and amount inputs plus an unused-import cleanup; lint was re-run after that cleanup.
-- An earlier browser pass confirmed the dashboard, Party A’s ledger (63 days then 55 days, accrued ₹2.98, due ₹52.98), changing the as-of date, reports, settings, and a narrow mobile layout.
+- Browser checks confirmed the dashboard, Party A’s ledger (63 days then 55 days, accrued ₹2.98, due ₹52.98), changing the as-of date, reports, settings, and a narrow mobile layout. A later pass confirmed the live previews: monthly rate `1.75` shows an annual equivalent of `21%`, and a ₹10 principal receipt on Party A’s `LN-001` shows ₹50.00 before, ₹10.00 received, and ₹40.00 after. ₹80 shows the exceeds-outstanding error. Those checks did not save a new loan or receipt.
 
 ## What's left
 
-- Confirm the two live previews in the browser after the input fix: typing `1.75` on Money Given shows annual `21%`, and a ₹10 principal receipt on Party A’s `LN-001` shows ₹50 before, ₹10 received, ₹40 after. ₹80 must show the exceeds-outstanding message. Those screens were wrong before the native-input change and have not been clicked again since the fix.
 - Re-run `npm run typecheck`, `npm test`, and `npm run build` on the committed tree if a release check is required. They passed before the input fix; lint passed after it.
 - Authentication. The audit actor is a constant. There is no login, session, or per-user permission.
 - A generated PDF file. Reports have a print stylesheet and a print button. Export is CSV and SpreadsheetML, not a PDF library.
@@ -69,7 +68,6 @@ Validation is Zod in `src/lib/validation.ts`. Server actions return `ActionState
 
 ## Known bugs
 
-- The monthly-rate and repayment-amount previews stayed stale when those fields used the shadcn `Input`. That component is Base UI `Field.Control`, which does not call React `onChange`. The rate, repayment date, and amount fields are now plain inputs with `onChange`. The fix is in the committed code. It has not been rechecked in the browser, so treat the preview as fixed in code and unverified on screen.
 - Displayed period interest can be a paisa away from the total. For Party A as of 26/09/2026 the rows show ₹2.07 and ₹0.90, while the balance uses ₹2.98. That is the rounding rule (each row rounded for display, the total rounded once from the exact sum), not a second calculation. It is called out under the breakdown table so it is not mistaken for a missing paisa.
 - Development logs can show a websocket error aimed at another port during hot reload. Page responses on port 3847 are unaffected.
 
@@ -86,6 +84,8 @@ Validation is Zod in `src/lib/validation.ts`. Server actions return `ActionState
 - **Loan status follows the full ledger.** `CLOSED` means principal is fully repaid on the whole history. Report filters that say “closed as of this date” use the outstanding principal on the selected date instead.
 - **Single user, audit-ready.** `currentActor` is `owner`. Every mutation already writes who, what, before, after, and when.
 - **Decimal safety.** Prisma `Decimal` columns and `decimal.js` in `src/lib/finance`. Amount fields reject commas; formatting (`₹1,00,000.00`) happens only on output.
+- **Dev origin.** The dev server binds to `0.0.0.0`. Next.js will not load the client bundle for `127.0.0.1` unless that host is listed in `allowedDevOrigins`. Without it, the page HTML arrives and the controlled previews never update. `next.config.ts` allows `127.0.0.1`.
+- **Controlled previews use native inputs.** The shadcn `Input` is Base UI `Field.Control` and does not call React `onChange`. The monthly rate, repayment date, and amount fields are plain inputs so the annual-rate and before/after principal previews update while typing.
 
 Party A as of 26/09/2026, from the same engine (`npm run demo -- 2026-09-26` and the unit test):
 
